@@ -1,0 +1,34 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: slidewise
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: slidewise
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U slidewise"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.2-90b-vision-preview}
+      DATABASE_URL: postgresql+asyncpg://slidewise:${DB_PASSWORD}@db:5432/slidewise
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-5242880}
+    env_file:
+      - .env
+
+volumes:
+  postgres_data:
