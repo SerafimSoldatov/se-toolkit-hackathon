@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   db:
     image: postgres:15
@@ -23,12 +21,10 @@ services:
       db:
         condition: service_healthy
     environment:
-      GROQ_API_KEY: ${GROQ_API_KEY}
-      GROQ_MODEL: ${GROQ_MODEL:-llama-3.2-90b-vision-preview}
+      GIGACHAT_CREDENTIALS: ${GIGACHAT_CREDENTIALS}
+      GIGACHAT_MODEL: ${GIGACHAT_MODEL:-GigaChat-2-Pro}
       DATABASE_URL: postgresql+asyncpg://slidewise:${DB_PASSWORD}@db:5432/slidewise
-      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-5242880}
-    env_file:
-      - .env
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-20971520}
 
 volumes:
   postgres_data:

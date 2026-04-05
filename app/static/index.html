@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SlideWise — AI Slide Analysis</title>
+    <title>SlideWise — AI-анализ и улучшение презентаций</title>
     <style>
         :root {
             --primary: #4f46e5;
@@ -17,38 +17,17 @@
             --error: #ef4444;
             --radius: 12px;
         }
-
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
         }
-
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 2rem 1rem;
-        }
-
-        header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-
-        header h1 {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--primary);
-        }
-
-        header p {
-            color: var(--text-muted);
-            margin-top: 0.5rem;
-        }
-
+        .container { max-width: 900px; margin: 0 auto; padding: 2rem 1rem; }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 { font-size: 2rem; font-weight: 700; color: var(--primary); }
+        header p { color: var(--text-muted); margin-top: 0.5rem; }
         .card {
             background: var(--card);
             border-radius: var(--radius);
@@ -56,7 +35,6 @@
             padding: 1.5rem;
             margin-bottom: 1.5rem;
         }
-
         .upload-area {
             border: 2px dashed var(--border);
             border-radius: var(--radius);
@@ -65,26 +43,10 @@
             cursor: pointer;
             transition: border-color 0.2s;
         }
-
-        .upload-area:hover, .upload-area.dragover {
-            border-color: var(--primary);
-        }
-
-        .upload-area input[type="file"] {
-            display: none;
-        }
-
-        .upload-icon {
-            font-size: 3rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .file-name {
-            margin-top: 0.5rem;
-            color: var(--text-muted);
-            font-size: 0.875rem;
-        }
-
+        .upload-area:hover, .upload-area.dragover { border-color: var(--primary); }
+        .upload-area input[type="file"] { display: none; }
+        .upload-icon { font-size: 3rem; margin-bottom: 0.5rem; }
+        .file-name { margin-top: 0.5rem; color: var(--text-muted); font-size: 0.875rem; }
         .btn {
             display: inline-block;
             background: var(--primary);
@@ -98,333 +60,391 @@
             transition: background 0.2s;
             margin-top: 1rem;
         }
-
         .btn:hover { background: var(--primary-hover); }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        .preview {
-            max-width: 100%;
-            max-height: 300px;
-            border-radius: var(--radius);
-            margin-top: 1rem;
-            display: none;
+        .btn-secondary { background: var(--text-muted); }
+        .btn-secondary:hover { background: #475569; }
+        .btn-success { background: var(--success); }
+        .btn-success:hover { background: #059669; }
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
         }
-
-        .results { display: none; }
-
-        .result-section {
-            margin-bottom: 1.5rem;
-        }
-
-        .result-section h3 {
-            font-size: 1.125rem;
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .result-section p {
-            color: var(--text-muted);
-            line-height: 1.6;
-        }
-
-        .tips-list {
-            list-style: none;
-            padding: 0;
-        }
-
-        .tips-list li {
-            padding: 0.5rem 0 0.5rem 1.5rem;
-            position: relative;
-            color: var(--text-muted);
-            line-height: 1.6;
-        }
-
-        .tips-list li::before {
-            content: "→";
-            position: absolute;
-            left: 0;
-            color: var(--success);
-            font-weight: 600;
-        }
-
-        .error-msg {
-            background: #fef2f2;
-            color: var(--error);
-            padding: 1rem;
-            border-radius: var(--radius);
-            display: none;
-        }
-
-        .spinner {
-            display: none;
-            text-align: center;
-            padding: 2rem;
-        }
-
+        .btn-outline:hover { background: var(--primary); color: white; }
+        .spinner { display: none; text-align: center; padding: 2rem; }
         .spinner::after {
             content: "";
             display: inline-block;
-            width: 2rem;
-            height: 2rem;
+            width: 2rem; height: 2rem;
             border: 3px solid var(--border);
             border-top-color: var(--primary);
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .error-msg {
+            background: #fef2f2; color: var(--error);
+            padding: 1rem; border-radius: var(--radius);
+            display: none;
         }
+        .results { display: none; }
+        .results h3 { font-size: 1.125rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+        .results p, .results pre { color: var(--text-muted); line-height: 1.6; white-space: pre-wrap; }
+        .results ul { list-style: none; padding: 0; }
+        .results li { padding: 0.5rem 0 0.5rem 1.5rem; position: relative; color: var(--text-muted); line-height: 1.6; }
+        .results li::before { content: "→"; position: absolute; left: 0; color: var(--success); font-weight: 600; }
+        .slide-feedback { background: var(--bg); padding: 0.75rem; border-radius: 8px; margin-bottom: 0.5rem; }
+        .slide-feedback strong { color: var(--text); }
 
-        .history-list {
-            list-style: none;
-            padding: 0;
-        }
-
-        .history-list li {
-            padding: 0.75rem;
-            border-bottom: 1px solid var(--border);
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .history-list li:last-child { border-bottom: none; }
-        .history-list li:hover { background: var(--bg); }
-
-        .history-date {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-        }
-
-        .history-preview {
-            font-size: 0.875rem;
-            color: var(--text);
-            margin-top: 0.25rem;
-        }
+        /* Improvement panel */
+        .improve-panel { display: none; }
+        .improve-options { display: none; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+        .aspect-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+        .aspect-buttons .btn { margin-top: 0; padding: 0.5rem 1rem; font-size: 0.875rem; }
+        .reference-section { border-top: 1px solid var(--border); padding-top: 1rem; margin-top: 1rem; }
+        .reference-section p { color: var(--text-muted); margin-bottom: 0.5rem; }
+        .reference-file { display: none; margin-top: 0.5rem; }
+        .improved-result { display: none; }
+        .improved-result h3 { color: var(--success); }
 
         .history-section { display: none; }
+        .history-list { list-style: none; padding: 0; }
+        .history-list li {
+            padding: 0.75rem; border-bottom: 1px solid var(--border);
+            cursor: pointer; transition: background 0.2s;
+        }
+        .history-list li:last-child { border-bottom: none; }
+        .history-list li:hover { background: var(--bg); }
+        .history-date { font-size: 0.75rem; color: var(--text-muted); }
+        .history-preview { font-size: 0.875rem; color: var(--text); margin-top: 0.25rem; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>SlideWise</h1>
-            <p>Upload a slide and get instant AI-powered feedback</p>
-        </header>
+<div class="container">
+    <header>
+        <h1>SlideWise</h1>
+        <p>AI-анализ и улучшение презентаций</p>
+    </header>
 
-        <div class="card">
-            <div class="upload-area" id="uploadArea">
-                <div class="upload-icon">📊</div>
-                <p><strong>Click to upload</strong> or drag & drop</p>
-                <p class="file-name" id="fileHint">JPG, PNG, or PDF (max 5MB)</p>
-                <input type="file" id="fileInput" accept="image/jpeg,image/png,application/pdf">
-            </div>
-            <img class="preview" id="preview" alt="Slide preview">
-            <div style="text-align: center;">
-                <button class="btn" id="analyzeBtn" disabled>Analyze</button>
-            </div>
+    <!-- Upload zone -->
+    <div class="card">
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <p><strong>Нажмите для выбора</strong> или перетащите PDF</p>
+            <p class="file-name" id="fileHint">PDF презентация (до 20 МБ)</p>
+            <input type="file" id="fileInput" accept="application/pdf">
         </div>
-
-        <div class="error-msg" id="errorMsg"></div>
-
-        <div class="spinner" id="spinner"></div>
-
-        <div class="results card" id="results">
-            <div class="result-section">
-                <h3>📝 Content Feedback</h3>
-                <p id="contentFeedback"></p>
-            </div>
-            <div class="result-section">
-                <h3>🎨 Design Feedback</h3>
-                <p id="designFeedback"></p>
-            </div>
-            <div class="result-section">
-                <h3>💡 Tips</h3>
-                <ul class="tips-list" id="tipsList"></ul>
-            </div>
-        </div>
-
-        <div class="history-section card" id="historySection">
-            <h3>🕒 Recent Analyses</h3>
-            <ul class="history-list" id="historyList"></ul>
+        <div style="text-align: center;">
+            <button class="btn" id="analyzeBtn" disabled>🔍 Анализировать презентацию</button>
         </div>
     </div>
 
-    <script>
-        const uploadArea = document.getElementById('uploadArea');
-        const fileInput = document.getElementById('fileInput');
-        const fileHint = document.getElementById('fileHint');
-        const preview = document.getElementById('preview');
-        const analyzeBtn = document.getElementById('analyzeBtn');
-        const errorMsg = document.getElementById('errorMsg');
-        const spinner = document.getElementById('spinner');
-        const results = document.getElementById('results');
-        const contentFeedback = document.getElementById('contentFeedback');
-        const designFeedback = document.getElementById('designFeedback');
-        const tipsList = document.getElementById('tipsList');
-        const historySection = document.getElementById('historySection');
-        const historyList = document.getElementById('historyList');
+    <!-- Error -->
+    <div class="error-msg" id="errorMsg"></div>
 
-        let selectedFile = null;
+    <!-- Spinner -->
+    <div class="spinner" id="spinner"></div>
 
-        // Upload area click
-        uploadArea.addEventListener('click', () => fileInput.click());
+    <!-- Primary results -->
+    <div class="results card" id="results">
+        <div id="overallSection"></div>
+        <div id="slidesSection"></div>
+        <div id="actionPlanSection"></div>
+        <div id="finalSection"></div>
+    </div>
 
-        // File selection
-        fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+    <!-- Improvement panel -->
+    <div class="improve-panel card" id="improvePanel">
+        <h3>❓ Хотите улучшить эту презентацию?</h3>
+        <div style="margin-top: 1rem;">
+            <button class="btn btn-success" id="improveYesBtn">✅ Да, улучшить</button>
+            <button class="btn btn-secondary" id="improveNoBtn">❌ Нет, хватит</button>
+        </div>
+        <div class="improve-options" id="improveOptions">
+            <p style="font-weight: 600; margin-bottom: 0.5rem;">🎯 Какой аспект улучшить?</p>
+            <div class="aspect-buttons">
+                <button class="btn btn-outline" data-priority="visual">📊 Наглядность</button>
+                <button class="btn btn-outline" data-priority="concise">📝 Лаконичность</button>
+                <button class="btn btn-outline" data-priority="colorful">🎨 Красочность</button>
+                <button class="btn btn-outline" data-priority="clear">🧠 Понятность</button>
+            </div>
+            <div class="reference-section">
+                <p>🔄 Или сделать похожей на пример:</p>
+                <button class="btn btn-outline" id="uploadRefBtn">📂 Загрузить PDF-пример</button>
+                <input type="file" id="refFileInput" accept="application/pdf" style="display:none">
+                <div class="reference-file" id="refFileDisplay">
+                    <p id="refFileName"></p>
+                    <button class="btn btn-success" id="imitateBtn">✨ Сделать похожей</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        // Drag and drop
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
+    <!-- Improved result -->
+    <div class="improved-result card" id="improvedResult">
+        <h3>✨ УЛУЧШЕННЫЙ РЕЗУЛЬТАТ</h3>
+        <p id="improvedLabel" style="color: var(--text-muted); margin-bottom: 1rem;"></p>
+        <div id="improvedContent"></div>
+        <div style="margin-top: 1rem;">
+            <button class="btn btn-success" id="saveBtn">💾 Сохранить в историю</button>
+            <button class="btn btn-outline" id="improveAgainBtn">🔄 Улучшить снова</button>
+        </div>
+    </div>
+
+    <!-- History -->
+    <div class="history-section card" id="historySection">
+        <h3>🕒 История анализов</h3>
+        <ul class="history-list" id="historyList"></ul>
+    </div>
+</div>
+
+<script>
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const fileHint = document.getElementById('fileHint');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const errorMsg = document.getElementById('errorMsg');
+    const spinner = document.getElementById('spinner');
+    const results = document.getElementById('results');
+    const improvePanel = document.getElementById('improvePanel');
+    const improveYesBtn = document.getElementById('improveYesBtn');
+    const improveNoBtn = document.getElementById('improveNoBtn');
+    const improveOptions = document.getElementById('improveOptions');
+    const improvedResult = document.getElementById('improvedResult');
+    const improvedContent = document.getElementById('improvedContent');
+    const improvedLabel = document.getElementById('improvedLabel');
+    const saveBtn = document.getElementById('saveBtn');
+    const improveAgainBtn = document.getElementById('improveAgainBtn');
+    const uploadRefBtn = document.getElementById('uploadRefBtn');
+    const refFileInput = document.getElementById('refFileInput');
+    const refFileDisplay = document.getElementById('refFileDisplay');
+    const refFileName = document.getElementById('refFileName');
+    const imitateBtn = document.getElementById('imitateBtn');
+    const historySection = document.getElementById('historySection');
+    const historyList = document.getElementById('historyList');
+
+    let selectedFile = null;
+    let referenceFile = null;
+    let lastAnalysisResult = null;
+    let lastImprovedResult = null;
+    let currentPriority = null;
+
+    // Upload area
+    uploadArea.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+    uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+    uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+
+    function handleFile(file) {
+        if (!file) return;
+        if (file.type !== 'application/pdf') { showError('Только PDF файлы поддерживаются.'); return; }
+        if (file.size > 20 * 1024 * 1024) { showError('Файл слишком большой (макс 20 МБ).'); return; }
+        hideError();
+        selectedFile = file;
+        fileHint.textContent = file.name;
+        analyzeBtn.disabled = false;
+    }
+
+    function showError(msg) { errorMsg.textContent = msg; errorMsg.style.display = 'block'; }
+    function hideError() { errorMsg.style.display = 'none'; }
+    function showSpinner(text) { spinner.style.display = 'block'; spinner.innerHTML = `<p>${text}</p>`; }
+    function hideSpinner() { spinner.style.display = 'none'; spinner.innerHTML = ''; }
+
+    // Analyze
+    analyzeBtn.addEventListener('click', async () => {
+        if (!selectedFile) return;
+        analyzeBtn.disabled = true;
+        hideError(); hideSpinner();
+        results.style.display = 'none';
+        improvePanel.style.display = 'none';
+        improvedResult.style.display = 'none';
+        showSpinner('Анализируем презентацию (это может занять 10-20 секунд)...');
+
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        try {
+            const response = await fetch('/analyze', { method: 'POST', body: formData });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Analysis failed');
+            lastAnalysisResult = data;
+            displayResults(data);
+            improvePanel.style.display = 'block';
+            improveOptions.style.display = 'none';
+        } catch (err) { showError(err.message); }
+        finally { hideSpinner(); analyzeBtn.disabled = false; }
+    });
+
+    function displayResults(data) {
+        const overall = document.getElementById('overallSection');
+        overall.innerHTML = `<h3>📊 Общая оценка</h3><p>${data.overall_assessment || '—'}</p>`;
+
+        const slides = document.getElementById('slidesSection');
+        if (data.slide_by_slide && data.slide_by_slide.length) {
+            let html = '<h3>📋 Разбор по слайдам</h3>';
+            data.slide_by_slide.forEach(s => {
+                html += `<div class="slide-feedback"><strong>Слайд ${s.slide_number}:</strong> ${s.feedback}</div>`;
+            });
+            slides.innerHTML = html;
+        } else { slides.innerHTML = ''; }
+
+        const plan = document.getElementById('actionPlanSection');
+        if (data.action_plan && data.action_plan.length) {
+            let html = '<h3>📝 План улучшений</h3><ul>';
+            data.action_plan.forEach(a => { html += `<li>${a}</li>`; });
+            html += '</ul>';
+            plan.innerHTML = html;
+        } else { plan.innerHTML = ''; }
+
+        const final = document.getElementById('finalSection');
+        final.innerHTML = data.final_recommendation ? `<h3>💡 Итоговая рекомендация</h3><p>${data.final_recommendation}</p>` : '';
+
+        results.style.display = 'block';
+    }
+
+    // Improve panel
+    improveYesBtn.addEventListener('click', () => { improveOptions.style.display = 'block'; });
+    improveNoBtn.addEventListener('click', () => { improvePanel.style.display = 'none'; });
+
+    // Aspect buttons
+    document.querySelectorAll('.aspect-buttons .btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const priority = btn.dataset.priority;
+            currentPriority = priority;
+            await runImprovement(priority);
         });
+    });
 
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
-        });
+    async function runImprovement(priority) {
+        hideError(); hideSpinner();
+        improvedResult.style.display = 'none';
+        showSpinner('Улучшаем презентацию...');
 
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-            if (e.dataTransfer.files.length) {
-                handleFile(e.dataTransfer.files[0]);
-            }
-        });
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        formData.append('priority', priority);
 
-        function handleFile(file) {
-            if (!file) return;
+        try {
+            const response = await fetch('/improve', { method: 'POST', body: formData });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Improvement failed');
+            lastImprovedResult = data;
+            displayImproved(data, priority);
+        } catch (err) { showError(err.message); }
+        finally { hideSpinner(); }
+    }
 
-            const allowed = ['image/jpeg', 'image/png', 'application/pdf'];
-            if (!allowed.includes(file.type)) {
-                showError('Only JPG, PNG, and PDF files are supported.');
-                return;
-            }
-
-            if (file.size > 5 * 1024 * 1024) {
-                showError('File is too large (max 5MB).');
-                return;
-            }
-
-            hideError();
-            selectedFile = file;
-            fileHint.textContent = file.name;
-            analyzeBtn.disabled = false;
-
-            // Show image preview
-            if (file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    preview.src = e.target.result;
-                    preview.style.display = 'block';
-                };
-                reader.readAsDataURL(file);
-            } else {
-                preview.style.display = 'none';
-            }
+    function displayImproved(data, label) {
+        improvedLabel.textContent = `на основе выбранного аспекта: ${label}`;
+        let html = '';
+        if (data.overall_assessment) html += `<p><strong>Оценка:</strong> ${data.overall_assessment}</p>`;
+        if (data.slide_by_slide) {
+            html += '<h4 style="margin-top:1rem;">Разбор по слайдам:</h4>';
+            data.slide_by_slide.forEach(s => {
+                html += `<div class="slide-feedback"><strong>Слайд ${s.slide_number}:</strong> ${s.feedback}</div>`;
+            });
         }
+        if (data.action_plan) {
+            html += '<h4 style="margin-top:1rem;">План действий:</h4><ul>';
+            data.action_plan.forEach(a => { html += `<li>${a}</li>`; });
+            html += '</ul>';
+        }
+        if (data.final_recommendation) html += `<p style="margin-top:1rem;"><strong>Совет:</strong> ${data.final_recommendation}</p>`;
+        improvedContent.innerHTML = html;
+        improvedResult.style.display = 'block';
+    }
 
-        // Analyze button
-        analyzeBtn.addEventListener('click', async () => {
-            if (!selectedFile) return;
+    // Reference file
+    uploadRefBtn.addEventListener('click', () => refFileInput.click());
+    refFileInput.addEventListener('change', (e) => {
+        if (e.target.files[0]) {
+            referenceFile = e.target.files[0];
+            refFileName.textContent = referenceFile.name;
+            refFileDisplay.style.display = 'block';
+        }
+    });
 
-            analyzeBtn.disabled = true;
-            hideError();
-            results.style.display = 'none';
-            spinner.style.display = 'block';
+    imitateBtn.addEventListener('click', async () => {
+        if (!referenceFile) return;
+        hideError(); hideSpinner();
+        improvedResult.style.display = 'none';
+        showSpinner('Сравниваем с референсом...');
 
-            const formData = new FormData();
-            formData.append('file', selectedFile);
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        formData.append('reference_file', referenceFile);
 
-            try {
-                const response = await fetch('/analyze', {
-                    method: 'POST',
-                    body: formData,
+        try {
+            const response = await fetch('/improve', { method: 'POST', body: formData });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Imitation failed');
+            lastImprovedResult = data;
+            currentPriority = 'imitate';
+            displayImproved(data, 'имитация референса');
+        } catch (err) { showError(err.message); }
+        finally { hideSpinner(); }
+    });
+
+    // Save
+    saveBtn.addEventListener('click', async () => {
+        if (!lastAnalysisResult) return;
+        const formData = new FormData();
+        formData.append('presentation_hash', selectedFile.name);
+        formData.append('original_feedback', JSON.stringify(lastAnalysisResult));
+        if (lastImprovedResult) {
+            formData.append('improved_feedback', JSON.stringify(lastImprovedResult));
+            formData.append('priority', currentPriority || '');
+        }
+        try {
+            await fetch('/save', { method: 'POST', body: formData });
+            saveBtn.textContent = '✅ Сохранено!';
+            setTimeout(() => { saveBtn.textContent = '💾 Сохранить в историю'; }, 2000);
+        } catch (err) { console.error('Save failed', err); }
+    });
+
+    // Improve again
+    improveAgainBtn.addEventListener('click', () => {
+        improvedResult.style.display = 'none';
+        improveOptions.style.display = 'block';
+    });
+
+    // Load history
+    async function loadHistory() {
+        try {
+            const response = await fetch('/history');
+            if (response.status === 501) return;
+            const data = await response.json();
+            if (!response.ok || !data.history || !data.history.length) return;
+
+            historyList.innerHTML = '';
+            data.history.forEach(item => {
+                const li = document.createElement('li');
+                const preview = item.original_feedback ? (JSON.parse(item.original_feedback).final_recommendation || 'Анализ презентации') : 'Анализ';
+                li.innerHTML = `<div class="history-date">${new Date(item.created_at).toLocaleString()}</div><div class="history-preview">${preview}</div>`;
+                li.addEventListener('click', () => {
+                    if (item.original_feedback) {
+                        lastAnalysisResult = JSON.parse(item.original_feedback);
+                        displayResults(lastAnalysisResult);
+                        improvePanel.style.display = 'block';
+                    }
+                    if (item.improved_feedback) {
+                        lastImprovedResult = JSON.parse(item.improved_feedback);
+                        currentPriority = item.priority;
+                        displayImproved(lastImprovedResult, item.priority || 'улучшение');
+                    }
                 });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(data.error || 'Analysis failed');
-                }
-
-                displayResults(data);
-            } catch (err) {
-                showError(err.message);
-            } finally {
-                spinner.style.display = 'none';
-                analyzeBtn.disabled = false;
-            }
-        });
-
-        function displayResults(data) {
-            contentFeedback.textContent = data.content || 'No content feedback available.';
-            designFeedback.textContent = data.design || 'No design feedback available.';
-
-            tipsList.innerHTML = '';
-            if (data.tips && Array.isArray(data.tips)) {
-                data.tips.forEach(tip => {
-                    const li = document.createElement('li');
-                    li.textContent = tip;
-                    tipsList.appendChild(li);
-                });
-            }
-
-            results.style.display = 'block';
-        }
-
-        function showError(msg) {
-            errorMsg.textContent = msg;
-            errorMsg.style.display = 'block';
-        }
-
-        function hideError() {
-            errorMsg.style.display = 'none';
-        }
-
-        // Load history
-        async function loadHistory() {
-            try {
-                const response = await fetch('/history');
-                if (response.status === 501) return; // History not available
-
-                const data = await response.json();
-                if (!response.ok) return;
-
-                if (data.history && data.history.length > 0) {
-                    historyList.innerHTML = '';
-                    data.history.forEach(item => {
-                        const li = document.createElement('li');
-                        li.innerHTML = `
-                            <div class="history-date">${new Date(item.created_at).toLocaleString()}</div>
-                            <div class="history-preview">${item.content_preview}</div>
-                        `;
-                        li.addEventListener('click', () => {
-                            contentFeedback.textContent = item.content;
-                            designFeedback.textContent = item.design;
-                            tipsList.innerHTML = '';
-                            (item.tips || []).forEach(tip => {
-                                const li = document.createElement('li');
-                                li.textContent = tip;
-                                tipsList.appendChild(li);
-                            });
-                            results.style.display = 'block';
-                        });
-                        historyList.appendChild(li);
-                    });
-                    historySection.style.display = 'block';
-                }
-            } catch (err) {
-                // Silently fail — history is optional
-            }
-        }
-
-        // Load history on page load
-        loadHistory();
-
-        // Ensure session_id cookie exists (backend sets it on first request)
-        // This is handled by the backend via Set-Cookie on responses
-    </script>
+                historyList.appendChild(li);
+            });
+            historySection.style.display = 'block';
+        } catch (err) { /* silently fail */ }
+    }
+    loadHistory();
+</script>
 </body>
 </html>
