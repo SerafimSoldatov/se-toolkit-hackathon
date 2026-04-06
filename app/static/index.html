@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SlideWise — AI-анализ и улучшение презентаций</title>
+    <title>SlideWise — AI Presentation Analysis & Improvement</title>
     <style>
         :root {
             --primary: #4f46e5;
@@ -15,6 +15,7 @@
             --border: #e2e8f0;
             --success: #10b981;
             --error: #ef4444;
+            --warning: #f59e0b;
             --radius: 12px;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -28,6 +29,16 @@
         header { text-align: center; margin-bottom: 2rem; }
         header h1 { font-size: 2rem; font-weight: 700; color: var(--primary); }
         header p { color: var(--text-muted); margin-top: 0.5rem; }
+        .badge {
+            display: inline-block;
+            background: var(--success);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
         .card {
             background: var(--card);
             border-radius: var(--radius);
@@ -36,14 +47,17 @@
             margin-bottom: 1.5rem;
         }
         .upload-area {
+            display: block;
             border: 2px dashed var(--border);
             border-radius: var(--radius);
             padding: 2rem;
             text-align: center;
             cursor: pointer;
-            transition: border-color 0.2s;
+            transition: all 0.2s;
+            pointer-events: auto;
+            user-select: none;
         }
-        .upload-area:hover, .upload-area.dragover { border-color: var(--primary); }
+        .upload-area:hover, .upload-area.dragover { border-color: var(--primary); background: #f0f0ff; }
         .upload-area input[type="file"] { display: none; }
         .upload-icon { font-size: 3rem; margin-bottom: 0.5rem; }
         .file-name { margin-top: 0.5rem; color: var(--text-muted); font-size: 0.875rem; }
@@ -83,6 +97,62 @@
             animation: spin 0.8s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* Progress bar */
+        .progress-container {
+            display: none;
+            background: var(--card);
+            border-radius: var(--radius);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        .progress-title {
+            font-weight: 600;
+            color: var(--text);
+        }
+        .progress-status {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+        .progress-bar-bg {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--primary-hover));
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+        .progress-slides {
+            margin-top: 0.5rem;
+            display: flex;
+            gap: 0.25rem;
+            flex-wrap: wrap;
+        }
+        .progress-slide-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--border);
+            transition: background 0.2s;
+        }
+        .progress-slide-dot.completed { background: var(--success); }
+        .progress-slide-dot.current { background: var(--primary); animation: pulse 1s infinite; }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
         .error-msg {
             background: #fef2f2; color: var(--error);
             padding: 1rem; border-radius: var(--radius);
@@ -94,8 +164,38 @@
         .results ul { list-style: none; padding: 0; }
         .results li { padding: 0.5rem 0 0.5rem 1.5rem; position: relative; color: var(--text-muted); line-height: 1.6; }
         .results li::before { content: "→"; position: absolute; left: 0; color: var(--success); font-weight: 600; }
-        .slide-feedback { background: var(--bg); padding: 0.75rem; border-radius: 8px; margin-bottom: 0.5rem; }
+        
+        /* Slide-by-slide feedback cards */
+        .slide-feedback {
+            background: var(--bg);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--primary);
+        }
         .slide-feedback strong { color: var(--text); }
+        .slide-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .slide-number {
+            font-weight: 600;
+            color: var(--primary);
+        }
+        .slide-feedback .feedback-text { color: var(--text); margin: 0.5rem 0; }
+        .slide-tags { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
+        .tag {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .tag-strength { background: #d1fae5; color: #065f46; }
+        .tag-weakness { background: #fee2e2; color: #991b1b; }
+        .tag-suggestion { background: #dbeafe; color: #1e40af; }
 
         /* Improvement panel */
         .improve-panel { display: none; }
@@ -123,25 +223,38 @@
 <body>
 <div class="container">
     <header>
-        <h1>SlideWise</h1>
-        <p>AI-анализ и улучшение презентаций</p>
+        <h1>SlideWise <span class="badge">Slide-by-Slide</span></h1>
+        <p>AI-powered presentation analysis and improvement (per-slide feedback)</p>
     </header>
 
     <!-- Upload zone -->
     <div class="card">
-        <div class="upload-area" id="uploadArea">
+        <label class="upload-area" id="uploadArea" for="fileInput">
             <div class="upload-icon">📁</div>
-            <p><strong>Нажмите для выбора</strong> или перетащите PDF</p>
-            <p class="file-name" id="fileHint">PDF презентация (до 20 МБ)</p>
+            <p><strong>Click to select</strong> or drag and drop a PDF</p>
+            <p class="file-name" id="fileHint">PDF presentation (up to 20 MB)</p>
             <input type="file" id="fileInput" accept="application/pdf">
-        </div>
+        </label>
         <div style="text-align: center;">
-            <button class="btn" id="analyzeBtn" disabled>🔍 Анализировать презентацию</button>
+            <button class="btn" id="analyzeBtn" disabled>🔍 Analyze Presentation</button>
+            <p style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.5rem;">⏱️ ~10 slides processed in 1 minute</p>
         </div>
     </div>
 
     <!-- Error -->
     <div class="error-msg" id="errorMsg"></div>
+
+    <!-- Progress Container -->
+    <div class="progress-container" id="progressContainer">
+        <div class="progress-header">
+            <span class="progress-title" id="progressTitle">🔍 Analyzing Presentation</span>
+            <span class="progress-status" id="progressStatus">Starting...</span>
+        </div>
+        <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progressBarFill" style="width: 0%"></div>
+        </div>
+        <div class="progress-slides" id="progressSlides"></div>
+    </div>
 
     <!-- Spinner -->
     <div class="spinner" id="spinner"></div>
@@ -156,45 +269,63 @@
 
     <!-- Improvement panel -->
     <div class="improve-panel card" id="improvePanel">
-        <h3>❓ Хотите улучшить эту презентацию?</h3>
+        <h3>❓ Want to improve this presentation?</h3>
+        <p style="color: var(--text-muted); margin-top: 0.5rem;">Choose an aspect to get actionable instructions, then upload your improved version.</p>
         <div style="margin-top: 1rem;">
-            <button class="btn btn-success" id="improveYesBtn">✅ Да, улучшить</button>
-            <button class="btn btn-secondary" id="improveNoBtn">❌ Нет, хватит</button>
+            <button class="btn btn-success" id="improveYesBtn">✅ Yes, improve</button>
+            <button class="btn btn-secondary" id="improveNoBtn">❌ No, done</button>
         </div>
-        <div class="improve-options" id="improveOptions">
-            <p style="font-weight: 600; margin-bottom: 0.5rem;">🎯 Какой аспект улучшить?</p>
+        <div class="improve-options" id="improveOptions" style="display: none;">
+            <p style="font-weight: 600; margin-bottom: 0.5rem;">🎯 Which aspect to improve?</p>
             <div class="aspect-buttons">
-                <button class="btn btn-outline" data-priority="visual">📊 Наглядность</button>
-                <button class="btn btn-outline" data-priority="concise">📝 Лаконичность</button>
-                <button class="btn btn-outline" data-priority="colorful">🎨 Красочность</button>
-                <button class="btn btn-outline" data-priority="clear">🧠 Понятность</button>
-            </div>
-            <div class="reference-section">
-                <p>🔄 Или сделать похожей на пример:</p>
-                <button class="btn btn-outline" id="uploadRefBtn">📂 Загрузить PDF-пример</button>
-                <input type="file" id="refFileInput" accept="application/pdf" style="display:none">
-                <div class="reference-file" id="refFileDisplay">
-                    <p id="refFileName"></p>
-                    <button class="btn btn-success" id="imitateBtn">✨ Сделать похожей</button>
-                </div>
+                <button class="btn btn-outline" data-priority="visual">📊 Visual Clarity</button>
+                <button class="btn btn-outline" data-priority="concise">📝 Conciseness</button>
+                <button class="btn btn-outline" data-priority="colorful">🎨 Visual Appeal</button>
+                <button class="btn btn-outline" data-priority="clear">🧠 Clarity</button>
             </div>
         </div>
     </div>
 
-    <!-- Improved result -->
+    <!-- Instructions panel -->
+    <div class="card" id="instructionsPanel" style="display: none;">
+        <h3>📋 Improvement Instructions</h3>
+        <p id="instructionsSummary" style="color: var(--text-muted); margin: 0.5rem 0;"></p>
+        <div id="instructionsList"></div>
+        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+            <p style="font-weight: 600; margin-bottom: 0.5rem;">📤 Upload your improved version:</p>
+            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.5rem;">Must have the same number of slides (<span id="expectedSlideCount"></span> slides)</p>
+            <p style="color: var(--text-muted); font-size: 0.75rem; margin-bottom: 0.5rem;">⏱️ ~10 slides processed in 1 minute</p>
+            <input type="file" id="improvedFileInput" accept="application/pdf" style="display:none">
+            <button class="btn btn-success" id="uploadImprovedBtn">📤 Upload improved presentation</button>
+            <button class="btn btn-secondary" id="cancelImprovementBtn" style="margin-left: 0.5rem;">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Evaluation result panel -->
+    <div class="card" id="evaluationPanel" style="display: none;">
+        <h3 id="evaluationTitle"></h3>
+        <div id="evaluationContent"></div>
+        <div style="margin-top: 1rem;">
+            <button class="btn btn-success" id="uploadAgainBtn" style="display: none;">📤 Upload another version</button>
+            <button class="btn btn-outline" id="chooseNewAspectBtn" style="display: none;">🎯 Choose new aspect</button>
+            <button class="btn btn-secondary" id="closeEvaluationBtn">Close</button>
+        </div>
+    </div>
+
+    <!-- Improved result (legacy) -->
     <div class="improved-result card" id="improvedResult">
-        <h3>✨ УЛУЧШЕННЫЙ РЕЗУЛЬТАТ</h3>
+        <h3>✨ IMPROVED RESULT</h3>
         <p id="improvedLabel" style="color: var(--text-muted); margin-bottom: 1rem;"></p>
         <div id="improvedContent"></div>
         <div style="margin-top: 1rem;">
-            <button class="btn btn-success" id="saveBtn">💾 Сохранить в историю</button>
-            <button class="btn btn-outline" id="improveAgainBtn">🔄 Улучшить снова</button>
+            <button class="btn btn-success" id="saveBtn">💾 Save to history</button>
+            <button class="btn btn-outline" id="improveAgainBtn">🔄 Improve again</button>
         </div>
     </div>
 
     <!-- History -->
     <div class="history-section card" id="historySection">
-        <h3>🕒 История анализов</h3>
+        <h3>🕒 Analysis History</h3>
         <ul class="history-list" id="historyList"></ul>
     </div>
 </div>
@@ -206,29 +337,45 @@
     const analyzeBtn = document.getElementById('analyzeBtn');
     const errorMsg = document.getElementById('errorMsg');
     const spinner = document.getElementById('spinner');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressTitle = document.getElementById('progressTitle');
+    const progressStatus = document.getElementById('progressStatus');
+    const progressBarFill = document.getElementById('progressBarFill');
+    const progressSlides = document.getElementById('progressSlides');
     const results = document.getElementById('results');
     const improvePanel = document.getElementById('improvePanel');
     const improveYesBtn = document.getElementById('improveYesBtn');
     const improveNoBtn = document.getElementById('improveNoBtn');
     const improveOptions = document.getElementById('improveOptions');
+    const instructionsPanel = document.getElementById('instructionsPanel');
+    const instructionsSummary = document.getElementById('instructionsSummary');
+    const instructionsList = document.getElementById('instructionsList');
+    const expectedSlideCount = document.getElementById('expectedSlideCount');
+    const improvedFileInput = document.getElementById('improvedFileInput');
+    const uploadImprovedBtn = document.getElementById('uploadImprovedBtn');
+    const cancelImprovementBtn = document.getElementById('cancelImprovementBtn');
+    const evaluationPanel = document.getElementById('evaluationPanel');
+    const evaluationTitle = document.getElementById('evaluationTitle');
+    const evaluationContent = document.getElementById('evaluationContent');
+    const uploadAgainBtn = document.getElementById('uploadAgainBtn');
+    const chooseNewAspectBtn = document.getElementById('chooseNewAspectBtn');
+    const closeEvaluationBtn = document.getElementById('closeEvaluationBtn');
     const improvedResult = document.getElementById('improvedResult');
     const improvedContent = document.getElementById('improvedContent');
     const improvedLabel = document.getElementById('improvedLabel');
     const saveBtn = document.getElementById('saveBtn');
     const improveAgainBtn = document.getElementById('improveAgainBtn');
-    const uploadRefBtn = document.getElementById('uploadRefBtn');
-    const refFileInput = document.getElementById('refFileInput');
-    const refFileDisplay = document.getElementById('refFileDisplay');
-    const refFileName = document.getElementById('refFileName');
-    const imitateBtn = document.getElementById('imitateBtn');
     const historySection = document.getElementById('historySection');
     const historyList = document.getElementById('historyList');
 
     let selectedFile = null;
-    let referenceFile = null;
     let lastAnalysisResult = null;
     let lastImprovedResult = null;
     let currentPriority = null;
+    let currentAnalysisId = null;
+    let currentInstructions = null;
+    let currentAspect = null;
+    let improvedPresentationFile = null;
 
     // Upload area
     uploadArea.addEventListener('click', () => fileInput.click());
@@ -243,8 +390,8 @@
 
     function handleFile(file) {
         if (!file) return;
-        if (file.type !== 'application/pdf') { showError('Только PDF файлы поддерживаются.'); return; }
-        if (file.size > 20 * 1024 * 1024) { showError('Файл слишком большой (макс 20 МБ).'); return; }
+        if (file.type !== 'application/pdf') { showError('Only PDF files are supported.'); return; }
+        if (file.size > 20 * 1024 * 1024) { showError('File too large (max 20 MB).'); return; }
         hideError();
         selectedFile = file;
         fileHint.textContent = file.name;
@@ -255,55 +402,178 @@
     function hideError() { errorMsg.style.display = 'none'; }
     function showSpinner(text) { spinner.style.display = 'block'; spinner.innerHTML = `<p>${text}</p>`; }
     function hideSpinner() { spinner.style.display = 'none'; spinner.innerHTML = ''; }
+    
+    // Progress tracking
+    function showProgress(title, totalSlides = 0) {
+        progressContainer.style.display = 'block';
+        progressTitle.textContent = title;
+        progressBarFill.style.width = '0%';
+        progressStatus.textContent = 'Starting...';
+        
+        // Create slide dots
+        progressSlides.innerHTML = '';
+        for (let i = 0; i < totalSlides; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'progress-slide-dot';
+            dot.id = `slide-dot-${i + 1}`;
+            progressSlides.appendChild(dot);
+        }
+    }
+    
+    function updateProgress(current, total, message) {
+        const percent = total > 0 ? Math.round((current / total) * 100) : 0;
+        progressBarFill.style.width = `${percent}%`;
+        progressStatus.textContent = message;
+        
+        // Update slide dots
+        for (let i = 1; i <= total; i++) {
+            const dot = document.getElementById(`slide-dot-${i}`);
+            if (dot) {
+                dot.className = 'progress-slide-dot';
+                if (i < current) dot.classList.add('completed');
+                else if (i === current) dot.classList.add('current');
+            }
+        }
+    }
+    
+    function hideProgress() {
+        progressContainer.style.display = 'none';
+    }
+    
+    function subscribeToProgress(taskId, onProgress, onComplete, onError) {
+        const eventSource = new EventSource(`/progress/${taskId}`);
+        
+        eventSource.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            
+            if (data.status === 'processing' && onProgress) {
+                onProgress(data.current_slide, data.total_slides, data.message);
+            } else if (data.status === 'complete') {
+                if (onProgress) onProgress(data.current_slide || 0, data.total_slides || 0, data.message);
+                eventSource.close();
+                if (onComplete) onComplete();
+            } else if (data.status === 'error') {
+                eventSource.close();
+                if (onError) onError(data.message || 'An error occurred');
+                else showError(data.message || 'An error occurred');
+            }
+        };
+        
+        eventSource.onerror = () => {
+            eventSource.close();
+            if (onError) onError('Connection lost');
+        };
+        
+        return eventSource;
+    }
 
     // Analyze
     analyzeBtn.addEventListener('click', async () => {
         if (!selectedFile) return;
         analyzeBtn.disabled = true;
-        hideError(); hideSpinner();
+        hideError(); hideSpinner(); hideProgress();
         results.style.display = 'none';
         improvePanel.style.display = 'none';
         improvedResult.style.display = 'none';
-        showSpinner('Анализируем презентацию (это может занять 10-20 секунд)...');
+        
+        showProgress('🔍 Analyzing Presentation', 0);
 
         const formData = new FormData();
         formData.append('file', selectedFile);
 
+        let eventSource = null;
+
         try {
             const response = await fetch('/analyze', { method: 'POST', body: formData });
             const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'Analysis failed');
-            lastAnalysisResult = data;
-            displayResults(data);
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Analysis failed');
+            }
+            
+            // Subscribe to progress updates
+            const taskId = data.task_id;
+            const result = await new Promise((resolve, reject) => {
+                eventSource = subscribeToProgress(
+                    taskId,
+                    (current, total, message) => updateProgress(current, total, message),
+                    () => resolve(data.result),
+                    (error) => reject(new Error(error))
+                );
+            });
+            
+            lastAnalysisResult = result;
+            currentAnalysisId = data.analysis_id || null;
+            displayResults(result);
             improvePanel.style.display = 'block';
             improveOptions.style.display = 'none';
-        } catch (err) { showError(err.message); }
-        finally { hideSpinner(); analyzeBtn.disabled = false; }
+            hideProgress();
+        } catch (err) {
+            showError(err.message);
+            hideProgress();
+        }
+        finally {
+            if (eventSource) eventSource.close();
+            analyzeBtn.disabled = false;
+        }
     });
 
     function displayResults(data) {
         const overall = document.getElementById('overallSection');
-        overall.innerHTML = `<h3>📊 Общая оценка</h3><p>${data.overall_assessment || '—'}</p>`;
+        overall.innerHTML = `<h3>📊 Overall Assessment</h3><p>${data.overall_assessment || '—'}</p>`;
 
         const slides = document.getElementById('slidesSection');
         if (data.slide_by_slide && data.slide_by_slide.length) {
-            let html = '<h3>📋 Разбор по слайдам</h3>';
+            let html = '<h3>📋 Slide-by-Slide Feedback</h3>';
             data.slide_by_slide.forEach(s => {
-                html += `<div class="slide-feedback"><strong>Слайд ${s.slide_number}:</strong> ${s.feedback}</div>`;
+                html += `<div class="slide-feedback">
+                    <div class="slide-header">
+                        <span class="slide-number">Slide ${s.slide_number}</span>
+                    </div>
+                    <div class="feedback-text">${s.feedback}</div>`;
+                
+                // Strengths
+                if (s.strengths && s.strengths.length) {
+                    html += '<div class="slide-tags">';
+                    s.strengths.forEach(st => {
+                        html += `<span class="tag tag-strength">✓ ${st}</span>`;
+                    });
+                    html += '</div>';
+                }
+                
+                // Weaknesses
+                if (s.weaknesses && s.weaknesses.length) {
+                    html += '<div class="slide-tags">';
+                    s.weaknesses.forEach(w => {
+                        html += `<span class="tag tag-weakness">✗ ${w}</span>`;
+                    });
+                    html += '</div>';
+                }
+                
+                // Suggestions
+                if (s.suggestions && s.suggestions.length) {
+                    html += '<div class="slide-tags">';
+                    s.suggestions.forEach(sug => {
+                        html += `<span class="tag tag-suggestion">💡 ${sug}</span>`;
+                    });
+                    html += '</div>';
+                }
+                
+                html += '</div>';
             });
             slides.innerHTML = html;
         } else { slides.innerHTML = ''; }
 
         const plan = document.getElementById('actionPlanSection');
         if (data.action_plan && data.action_plan.length) {
-            let html = '<h3>📝 План улучшений</h3><ul>';
+            let html = '<h3>📝 Action Plan</h3><ul>';
             data.action_plan.forEach(a => { html += `<li>${a}</li>`; });
             html += '</ul>';
             plan.innerHTML = html;
         } else { plan.innerHTML = ''; }
 
         const final = document.getElementById('finalSection');
-        final.innerHTML = data.final_recommendation ? `<h3>💡 Итоговая рекомендация</h3><p>${data.final_recommendation}</p>` : '';
+        final.innerHTML = data.final_recommendation ? `<h3>💡 Final Recommendation</h3><p>${data.final_recommendation}</p>` : '';
 
         results.style.display = 'block';
     }
@@ -312,83 +582,231 @@
     improveYesBtn.addEventListener('click', () => { improveOptions.style.display = 'block'; });
     improveNoBtn.addEventListener('click', () => { improvePanel.style.display = 'none'; });
 
-    // Aspect buttons
+    // Aspect buttons - start iterative improvement
     document.querySelectorAll('.aspect-buttons .btn').forEach(btn => {
         btn.addEventListener('click', async () => {
-            const priority = btn.dataset.priority;
-            currentPriority = priority;
-            await runImprovement(priority);
+            const aspect = btn.dataset.priority;
+            await startIterativeImprovement(aspect);
         });
     });
 
-    async function runImprovement(priority) {
-        hideError(); hideSpinner();
-        improvedResult.style.display = 'none';
-        showSpinner('Улучшаем презентацию...');
+    async function startIterativeImprovement(aspect) {
+        if (!lastAnalysisResult || !currentAnalysisId) {
+            showError('No analysis data available. Please analyze a presentation first.');
+            return;
+        }
+
+        hideError(); hideProgress();
+        improvePanel.style.display = 'none';
+        instructionsPanel.style.display = 'none';
+        evaluationPanel.style.display = 'none';
+        showProgress(`Generating instructions for ${aspect}...`, 0);
 
         const formData = new FormData();
-        formData.append('file', selectedFile);
-        formData.append('priority', priority);
+        formData.append('analysis_id', currentAnalysisId);
+        formData.append('aspect', aspect);
 
         try {
-            const response = await fetch('/improve', { method: 'POST', body: formData });
+            const response = await fetch('/start-improvement', { method: 'POST', body: formData });
             const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'Improvement failed');
-            lastImprovedResult = data;
-            displayImproved(data, priority);
-        } catch (err) { showError(err.message); }
-        finally { hideSpinner(); }
-    }
 
-    function displayImproved(data, label) {
-        improvedLabel.textContent = `на основе выбранного аспекта: ${label}`;
-        let html = '';
-        if (data.overall_assessment) html += `<p><strong>Оценка:</strong> ${data.overall_assessment}</p>`;
-        if (data.slide_by_slide) {
-            html += '<h4 style="margin-top:1rem;">Разбор по слайдам:</h4>';
-            data.slide_by_slide.forEach(s => {
-                html += `<div class="slide-feedback"><strong>Слайд ${s.slide_number}:</strong> ${s.feedback}</div>`;
+            if (!response.ok) throw new Error(data.error || 'Failed to start improvement');
+
+            // Subscribe to progress
+            const taskId = data.task_id;
+            await new Promise((resolve, reject) => {
+                subscribeToProgress(
+                    taskId,
+                    (current, total, message) => updateProgress(current, total, message),
+                    () => resolve(),
+                    (error) => reject(new Error(error))
+                );
             });
+
+            // Show instructions
+            currentInstructions = data.instructions;
+            currentAspect = aspect;
+            displayInstructions(data.instructions, data.slide_count);
+            hideProgress();
+        } catch (err) {
+            showError(err.message);
+            hideProgress();
         }
-        if (data.action_plan) {
-            html += '<h4 style="margin-top:1rem;">План действий:</h4><ul>';
-            data.action_plan.forEach(a => { html += `<li>${a}</li>`; });
-            html += '</ul>';
-        }
-        if (data.final_recommendation) html += `<p style="margin-top:1rem;"><strong>Совет:</strong> ${data.final_recommendation}</p>`;
-        improvedContent.innerHTML = html;
-        improvedResult.style.display = 'block';
     }
 
-    // Reference file
-    uploadRefBtn.addEventListener('click', () => refFileInput.click());
-    refFileInput.addEventListener('change', (e) => {
+    function displayInstructions(instructions, slideCount) {
+        instructionsSummary.textContent = instructions.summary || `Improving ${currentAspect} aspect`;
+        expectedSlideCount.textContent = slideCount;
+
+        let html = '';
+        if (instructions.instructions && instructions.instructions.length) {
+            // Group by slide
+            const bySlide = {};
+            instructions.instructions.forEach(inst => {
+                const slide = inst.slide_number;
+                if (!bySlide[slide]) bySlide[slide] = [];
+                bySlide[slide].push(inst);
+            });
+
+            Object.keys(bySlide).sort((a, b) => a - b).forEach(slideNum => {
+                html += `<div class="slide-feedback">
+                    <div class="slide-header">
+                        <span class="slide-number">Slide ${slideNum}</span>
+                    </div>`;
+                
+                bySlide[slideNum].forEach((inst, idx) => {
+                    const priorityColor = inst.priority === 'high' ? '#ef4444' : inst.priority === 'medium' ? '#f59e0b' : '#10b981';
+                    html += `<div style="margin: 0.5rem 0; padding-left: 1rem; border-left: 3px solid ${priorityColor};">
+                        <span style="font-size: 0.75rem; color: ${priorityColor}; font-weight: 600; text-transform: uppercase;">${inst.priority}</span>
+                        <p style="margin: 0.25rem 0 0 0;">${inst.instruction}</p>
+                    </div>`;
+                });
+                
+                html += '</div>';
+            });
+        } else {
+            html = '<p style="color: var(--text-muted);">No specific instructions generated.</p>';
+        }
+
+        instructionsList.innerHTML = html;
+        instructionsPanel.style.display = 'block';
+    }
+
+    // Upload improved file
+    uploadImprovedBtn.addEventListener('click', () => improvedFileInput.click());
+    improvedFileInput.addEventListener('change', (e) => {
         if (e.target.files[0]) {
-            referenceFile = e.target.files[0];
-            refFileName.textContent = referenceFile.name;
-            refFileDisplay.style.display = 'block';
+            improvedPresentationFile = e.target.files[0];
+            uploadImprovedPresentation();
         }
     });
 
-    imitateBtn.addEventListener('click', async () => {
-        if (!referenceFile) return;
-        hideError(); hideSpinner();
-        improvedResult.style.display = 'none';
-        showSpinner('Сравниваем с референсом...');
+    cancelImprovementBtn.addEventListener('click', () => {
+        instructionsPanel.style.display = 'none';
+        improvePanel.style.display = 'block';
+        currentInstructions = null;
+        currentAspect = null;
+    });
+
+    async function uploadImprovedPresentation() {
+        if (!improvedPresentationFile || !currentAnalysisId) return;
+
+        hideError(); hideProgress();
+        showProgress('Evaluating improved presentation', 0);
 
         const formData = new FormData();
-        formData.append('file', selectedFile);
-        formData.append('reference_file', referenceFile);
+        formData.append('analysis_id', currentAnalysisId);
+        formData.append('file', improvedPresentationFile);
 
         try {
-            const response = await fetch('/improve', { method: 'POST', body: formData });
+            const response = await fetch('/check-improvement', { method: 'POST', body: formData });
             const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'Imitation failed');
-            lastImprovedResult = data;
-            currentPriority = 'imitate';
-            displayImproved(data, 'имитация референса');
-        } catch (err) { showError(err.message); }
-        finally { hideSpinner(); }
+
+            if (!response.ok) {
+                // Check if it's a slide count mismatch
+                if (data.expected_slides && data.actual_slides) {
+                    throw new Error(`${data.error}`);
+                }
+                throw new Error(data.error || 'Evaluation failed');
+            }
+
+            // Subscribe to progress
+            const taskId = data.task_id;
+            await new Promise((resolve, reject) => {
+                subscribeToProgress(
+                    taskId,
+                    (current, total, message) => updateProgress(current, total, message),
+                    () => resolve(),
+                    (error) => reject(new Error(error))
+                );
+            });
+
+            // Show evaluation result
+            displayEvaluationResult(data, improvedPresentationFile.name);
+            hideProgress();
+        } catch (err) {
+            showError(err.message);
+            hideProgress();
+        }
+    }
+
+    function displayEvaluationResult(data, fileName) {
+        const resolved = data.resolved;
+
+        if (resolved) {
+            evaluationTitle.textContent = '✅ All Instructions Followed!';
+            evaluationContent.innerHTML = `
+                <p><strong>Great job!</strong> Your presentation "${fileName}" has addressed all the instructions.</p>
+                <p style="margin-top: 0.5rem;">Iterations: ${data.iteration_count}</p>
+            `;
+            uploadAgainBtn.style.display = 'none';
+            chooseNewAspectBtn.style.display = 'inline-block';
+        } else {
+            evaluationTitle.textContent = '❌ Issues Remain';
+            let html = `<p><strong>Some instructions still need work.</strong></p>`;
+            html += `<p style="margin-top: 0.5rem;">Iterations: ${data.iteration_count}</p>`;
+
+            if (data.evaluation && data.evaluation.evaluation && data.evaluation.evaluation.length) {
+                const evalItems = data.evaluation.evaluation;
+                // Show unresolved issues
+                const unresolved = evalItems.filter(ev => ev.status !== 'resolved');
+                const resolved_items = evalItems.filter(ev => ev.status === 'resolved');
+                
+                if (unresolved.length > 0) {
+                    html += `<h4 style="margin-top: 1rem; color: var(--error);">🔴 Remaining Issues (${unresolved.length}):</h4>`;
+                    unresolved.forEach(ev => {
+                        html += `<div class="slide-feedback" style="border-left-color: #ef4444;">
+                            <div class="slide-header">
+                                <span class="slide-number">Slide ${ev.slide_number}</span>
+                                <span style="font-size: 0.75rem; color: #ef4444; font-weight: 600; text-transform: uppercase;">${ev.status}</span>
+                            </div>
+                            <p style="margin: 0.25rem 0;"><strong>Instruction:</strong> ${ev.instruction}</p>
+                            <p style="margin: 0.25rem 0 0 0; color: var(--text-muted);">${ev.comment}</p>
+                        </div>`;
+                    });
+                }
+                
+                if (resolved_items.length > 0) {
+                    html += `<h4 style="margin-top: 1rem; color: var(--success);">🟢 Resolved (${resolved_items.length}):</h4>`;
+                    resolved_items.forEach(ev => {
+                        html += `<div class="slide-feedback" style="border-left-color: #10b981; opacity: 0.7;">
+                            <div class="slide-header">
+                                <span class="slide-number">Slide ${ev.slide_number}</span>
+                                <span style="font-size: 0.75rem; color: #10b981; font-weight: 600; text-transform: uppercase;">✓ resolved</span>
+                            </div>
+                            <p style="margin: 0.25rem 0 0 0; color: var(--text-muted);">${ev.comment}</p>
+                        </div>`;
+                    });
+                }
+            }
+
+            evaluationContent.innerHTML = html;
+            uploadAgainBtn.style.display = 'inline-block';
+            chooseNewAspectBtn.style.display = 'none';
+        }
+
+        instructionsPanel.style.display = 'none';
+        evaluationPanel.style.display = 'block';
+    }
+
+    // Upload again or choose new aspect
+    uploadAgainBtn.addEventListener('click', () => {
+        evaluationPanel.style.display = 'none';
+        instructionsPanel.style.display = 'block';
+        improvedFileInput.value = '';
+        improvedPresentationFile = null;
+    });
+
+    chooseNewAspectBtn.addEventListener('click', () => {
+        evaluationPanel.style.display = 'none';
+        improvePanel.style.display = 'block';
+        improveOptions.style.display = 'block';
+        currentInstructions = null;
+        currentAspect = null;
+    });
+
+    closeEvaluationBtn.addEventListener('click', () => {
+        evaluationPanel.style.display = 'none';
     });
 
     // Save
@@ -403,8 +821,8 @@
         }
         try {
             await fetch('/save', { method: 'POST', body: formData });
-            saveBtn.textContent = '✅ Сохранено!';
-            setTimeout(() => { saveBtn.textContent = '💾 Сохранить в историю'; }, 2000);
+            saveBtn.textContent = '✅ Saved!';
+            setTimeout(() => { saveBtn.textContent = '💾 Save to history'; }, 2000);
         } catch (err) { console.error('Save failed', err); }
     });
 
@@ -425,7 +843,7 @@
             historyList.innerHTML = '';
             data.history.forEach(item => {
                 const li = document.createElement('li');
-                const preview = item.original_feedback ? (JSON.parse(item.original_feedback).final_recommendation || 'Анализ презентации') : 'Анализ';
+                const preview = item.original_feedback ? (JSON.parse(item.original_feedback).final_recommendation || 'Presentation analysis') : 'Analysis';
                 li.innerHTML = `<div class="history-date">${new Date(item.created_at).toLocaleString()}</div><div class="history-preview">${preview}</div>`;
                 li.addEventListener('click', () => {
                     if (item.original_feedback) {
@@ -436,7 +854,7 @@
                     if (item.improved_feedback) {
                         lastImprovedResult = JSON.parse(item.improved_feedback);
                         currentPriority = item.priority;
-                        displayImproved(lastImprovedResult, item.priority || 'улучшение');
+                        displayImproved(lastImprovedResult, item.priority || 'improvement');
                     }
                 });
                 historyList.appendChild(li);

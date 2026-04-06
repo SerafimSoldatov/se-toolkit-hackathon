@@ -1,4 +1,4 @@
-# SlideWise — AI-анализ и улучшение презентаций
+# SlideWise (Slide-by-Slide Iteration) — AI-анализ и улучшение презентаций
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green.svg)
@@ -6,7 +6,15 @@
 ![GigaChat](https://img.shields.io/badge/AI-GigaChat--2--Pro-green.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-AI-powered presentation analysis with persistent history. Upload a PDF presentation and get instant, detailed feedback on content, design, and actionable improvement tips.
+**Slide-by-Slide Processing** — Each slide is analyzed individually for specific, targeted feedback instead of generic repeated messages.
+
+## Key Improvements Over Original
+
+- ✅ **Per-Slide Analysis:** Each slide is sent to GigaChat individually for specific feedback
+- ✅ **Rich Feedback Structure:** Strengths, weaknesses, and suggestions per slide
+- ✅ **Better Improvement Modes:** All 4 aspects (visual, concise, colorful, clear) work per-slide
+- ✅ **Slide-by-Slide Imitation:** Compare corresponding slides with reference presentation
+- ✅ **Configurable:** Toggle between slide-by-slide and legacy mode via `SLIDE_BY_SLIDE` env var
 
 ## Features
 
@@ -27,15 +35,15 @@ cp .env.example .env
 docker-compose up -d --build
 ```
 
-Open `http://localhost:8000`
+Open `http://localhost:8001` (note: port 8001 to avoid conflict with original)
 
 ## Architecture
 
-- **Frontend:** Single HTML page with vanilla JS
+- **Frontend:** Single HTML page with vanilla JS (enhanced slide-by-slide display)
 - **Backend:** FastAPI (async)
 - **Database:** PostgreSQL 15
 - **LLM:** GigaChat-2-Pro (Sberbank)
-- **PDF Processing:** PyMuPDF (converts PDF to stitched image)
+- **PDF Processing:** PyMuPDF (converts PDF to individual slide images)
 - **ORM:** SQLAlchemy (async)
 
 ## API Endpoints
@@ -43,7 +51,7 @@ Open `http://localhost:8000`
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/` | Serve the HTML frontend |
-| POST | `/analyze` | Upload a PDF, get full presentation feedback |
+| POST | `/analyze` | Upload a PDF, get full presentation feedback (slide-by-slide) |
 | POST | `/improve` | Improve by aspect (`priority`) or by reference (`reference_file`) |
 | POST | `/save` | Save analysis result to database |
 | GET | `/history` | Get last 10 analyses for current session |
@@ -57,6 +65,20 @@ Open `http://localhost:8000`
 | `DATABASE_URL` | PostgreSQL async connection string | Yes |
 | `DB_PASSWORD` | Database password | Yes |
 | `MAX_FILE_SIZE` | Max upload size in bytes (default: 20971520) | No |
+| `MAX_PDF_PAGES` | Max PDF pages to process (default: 20) | No |
+| `SLIDE_BY_SLIDE` | Enable slide-by-slide processing (default: true) | No |
+
+## How Slide-by-Slide Works
+
+1. **PDF → Individual Images:** Each page is extracted as a separate JPEG image
+2. **Per-Slide Analysis:** Each slide is sent to GigaChat with a specific prompt
+3. **Structured Response:** Each slide returns:
+   - `feedback`: Detailed analysis for that specific slide
+   - `strengths`: Array of strong points
+   - `weaknesses`: Array of weak points
+   - `suggestions`: Array of concrete improvement suggestions
+4. **Overall Assessment:** After all slides are analyzed, a summary is generated
+5. **UI Display:** Each slide's feedback is shown in a card with color-coded tags
 
 ## Troubleshooting
 
@@ -69,6 +91,10 @@ Open `http://localhost:8000`
 
 **Issue: SSL certificate error**
 - SSL verification is disabled by default (`verify_ssl_certs=False`) for university VM
+
+**Issue: Analysis takes too long**
+- Slide-by-slide mode makes multiple API calls (one per slide)
+- This is expected behavior; you can disable it by setting `SLIDE_BY_SLIDE=false`
 
 ## Stop All Services
 

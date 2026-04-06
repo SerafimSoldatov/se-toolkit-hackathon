@@ -16,7 +16,7 @@ services:
   backend:
     build: .
     ports:
-      - "8000:8000"
+      - "8001:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -25,6 +25,8 @@ services:
       GIGACHAT_MODEL: ${GIGACHAT_MODEL:-GigaChat-2-Pro}
       DATABASE_URL: postgresql+asyncpg://slidewise:${DB_PASSWORD}@db:5432/slidewise
       MAX_FILE_SIZE: ${MAX_FILE_SIZE:-20971520}
+      MAX_PDF_PAGES: ${MAX_PDF_PAGES:-20}
+      SLIDE_BY_SLIDE: ${SLIDE_BY_SLIDE:-true}
 
 volumes:
   postgres_data:
