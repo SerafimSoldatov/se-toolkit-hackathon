@@ -166,7 +166,8 @@ async def save_result(
             )
             db.add(record)
             await db.commit()
-            return JSONResponse(content={"id": record.id})
+            response = JSONResponse(content={"id": record.id})
+            return set_session_cookie(response, session_id)
     except Exception as e:
         logger.error(f"Error saving result: {e}", exc_info=True)
         return JSONResponse(status_code=500, content={"error": "Failed to save"})

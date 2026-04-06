@@ -1,26 +1,21 @@
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean
-from sqlalchemy.orm import DeclarativeBase
-
-
-class Base(DeclarativeBase):
-    pass
+from sqlalchemy import Column, Integer, String, Text, DateTime
+from app.database import Base
 
 
 class Analysis(Base):
-    """Presentation analysis record."""
     __tablename__ = "analyses"
 
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(String, nullable=False, index=True)
     presentation_hash = Column(String, nullable=False, index=True)
-    original_feedback = Column(Text, nullable=True)  # JSON string
-    improved_feedback = Column(Text, nullable=True)  # JSON string
-    priority = Column(String, nullable=True)  # visual/concise/colorful/clear/imitate
+    original_feedback = Column(Text, nullable=True)
+    improved_feedback = Column(Text, nullable=True)
+    priority = Column(String, nullable=True)
     reference_presentation_hash = Column(String, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.utcnow())
 
     def to_dict(self) -> dict:
         return {
