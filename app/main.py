@@ -64,26 +64,17 @@ async def log_requests(request: Request, call_next):
 @app.get("/progress/{task_id}")
 async def progress_stream(task_id: str):
     """Server-Sent Events endpoint for real-time progress."""
-    logger.info(f"SSE connection opened for task {task_id}")
-
     async def event_stream() -> AsyncGenerator[str, None]:
         import asyncio
-        iterations = 0
         while True:
-            iterations += 1
             if task_id in progress_store:
                 progress = progress_store[task_id]
-                data_str = json.dumps(progress)
-                logger.info(f"SSE yield [{progress.get('status')}] slide {progress.get('current_slide', 0)}/{progress.get('total_slides', 0)}: {progress.get('message', '')}")
-                yield f"data: {data_str}\n\n"
+                yield f"data: {json.dumps(progress)}\n\n"
 
                 # Stop streaming when complete
                 if progress.get("status") == "complete" or progress.get("status") == "error":
-                    logger.info(f"SSE connection closed for task {task_id} after {iterations} iterations")
                     break
             else:
-                if iterations <= 3:
-                    logger.info(f"SSE waiting for task {task_id} (iteration {iterations})")
                 yield f"data: {json.dumps({'status': 'waiting'})}\n\n"
 
             await asyncio.sleep(0.3)
@@ -144,7 +135,6 @@ async def analyze(request: Request, file: UploadFile = File(...), task_id: str =
     }
 
     def update_progress(current: int, total: int, message: str):
-        logger.info(f"Progress callback: slide {current}/{total} - {message}")
         progress_store[task_id] = {
             "status": "processing",
             "current_slide": current,

@@ -478,6 +478,15 @@
     // --- localStorage state persistence ---
     const STATE_KEY = 'slidewise_state';
 
+    // UUID generator that works in insecure contexts (HTTP on non-localhost IPs)
+    function generateTaskId() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
     function saveState() {
         try {
             const state = {
@@ -706,7 +715,7 @@
         improvedResult.style.display = 'none';
 
         // Generate task_id client-side so we can subscribe to SSE before the request completes
-        const taskId = crypto.randomUUID();
+        const taskId = generateTaskId();
         showProgress('🔍 Analyzing Presentation', 0);
 
         // Subscribe to SSE immediately — backend will update progress_store as it works
@@ -735,10 +744,8 @@
             await progressPromise;
 
             const result = data.result;
-            console.log('[analyze] response:', JSON.stringify(data, null, 2).substring(0, 500));
             lastAnalysisResult = result;
             currentAnalysisId = data.analysis_id || null;
-            console.log('[analyze] currentAnalysisId =', currentAnalysisId);
             displayResults(result);
             improvePanel.style.display = 'block';
             improveOptions.style.display = 'none';
@@ -815,32 +822,19 @@
     }
 
     // Improve panel
-    improveYesBtn.addEventListener('click', () => {
-        console.log('[improveYesBtn] Showing improve options');
-        improveOptions.style.display = 'block';
-    });
+    improveYesBtn.addEventListener('click', () => { improveOptions.style.display = 'block'; });
     improveNoBtn.addEventListener('click', () => { improvePanel.style.display = 'none'; });
 
     // Aspect buttons - start iterative improvement
-    const aspectBtns = document.querySelectorAll('.aspect-buttons .btn');
-    console.log(`Found ${aspectBtns.length} aspect buttons`);
-    aspectBtns.forEach((btn, i) => {
-        console.log(`Button ${i}: "${btn.textContent.trim()}" priority="${btn.dataset.priority}"`);
+    document.querySelectorAll('.aspect-buttons .btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             e.preventDefault();
             const aspect = btn.dataset.priority;
-            console.log('[aspect click]', aspect);
             await startIterativeImprovement(aspect);
         });
     });
 
     async function startIterativeImprovement(aspect) {
-        console.log('[startIterativeImprovement]', {
-            hasLastAnalysisResult: !!lastAnalysisResult,
-            currentAnalysisId,
-            aspect
-        });
-
         if (!lastAnalysisResult) {
             showError('No analysis data available. Please analyze a presentation first.');
             return;
@@ -857,7 +851,7 @@
         evaluationPanel.style.display = 'none';
         showProgress(`Generating instructions for ${aspect}...`, 0);
 
-        const taskId = crypto.randomUUID();
+        const taskId = generateTaskId();
 
         // Subscribe to SSE immediately
         const progressPromise = new Promise((resolve, reject) => {
@@ -957,7 +951,7 @@
         hideError(); hideProgress();
         showProgress('Evaluating improved presentation', 0);
 
-        const taskId = crypto.randomUUID();
+        const taskId = generateTaskId();
 
         // Subscribe to SSE immediately
         const progressPromise = new Promise((resolve, reject) => {
