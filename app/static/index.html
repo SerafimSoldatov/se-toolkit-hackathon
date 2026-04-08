@@ -121,6 +121,15 @@
             color: var(--text-muted);
             font-size: 0.875rem;
         }
+        .progress-time {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        .progress-time .eta { font-weight: 500; }
         .progress-bar-bg {
             width: 100%;
             height: 8px;
@@ -201,7 +210,7 @@
         .improve-panel { display: none; }
         .improve-options { display: none; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
         .aspect-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
-        .aspect-buttons .btn { margin-top: 0; padding: 0.5rem 1rem; font-size: 0.875rem; }
+        .aspect-buttons .btn { margin-top: 0; padding: 0.5rem 1rem; font-size: 0.875rem; cursor: pointer; }
         .reference-section { border-top: 1px solid var(--border); padding-top: 1rem; margin-top: 1rem; }
         .reference-section p { color: var(--text-muted); margin-bottom: 0.5rem; }
         .reference-file { display: none; margin-top: 0.5rem; }
@@ -218,6 +227,38 @@
         .history-list li:hover { background: var(--bg); }
         .history-date { font-size: 0.75rem; color: var(--text-muted); }
         .history-preview { font-size: 0.875rem; color: var(--text); margin-top: 0.25rem; }
+
+        /* New Presentation button */
+        .new-presentation-bar {
+            display: none;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 2px solid var(--border);
+            text-align: center;
+        }
+        .new-presentation-bar.visible { display: block; }
+        .new-presentation-bar p {
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+            font-size: 0.875rem;
+        }
+        .btn-new-presentation {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.875rem 2.5rem;
+            border-radius: var(--radius);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
+        }
+        .btn-new-presentation:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -252,6 +293,10 @@
         </div>
         <div class="progress-bar-bg">
             <div class="progress-bar-fill" id="progressBarFill" style="width: 0%"></div>
+        </div>
+        <div class="progress-time" id="progressTime" style="display: none;">
+            <span class="eta" id="progressEta">⏱️ Estimating...</span>
+            <span class="elapsed" id="progressElapsed">Elapsed: 0s</span>
         </div>
         <div class="progress-slides" id="progressSlides"></div>
     </div>
@@ -328,6 +373,12 @@
         <h3>🕒 Analysis History</h3>
         <ul class="history-list" id="historyList"></ul>
     </div>
+
+    <!-- New Presentation bar -->
+    <div class="new-presentation-bar" id="newPresentationBar">
+        <p>Ready to analyze another presentation?</p>
+        <button class="btn-new-presentation" id="newPresentationBtn">📁 New Presentation</button>
+    </div>
 </div>
 
 <script>
@@ -342,6 +393,15 @@
     const progressStatus = document.getElementById('progressStatus');
     const progressBarFill = document.getElementById('progressBarFill');
     const progressSlides = document.getElementById('progressSlides');
+    const progressTime = document.getElementById('progressTime');
+    const progressEta = document.getElementById('progressEta');
+    const progressElapsed = document.getElementById('progressElapsed');
+
+    const SECONDS_PER_SLIDE = 5;
+
+    let progressTotalSlides = 0;
+    let progressStartTime = null;
+    let progressEtaInterval = null;
     const results = document.getElementById('results');
     const improvePanel = document.getElementById('improvePanel');
     const improveYesBtn = document.getElementById('improveYesBtn');
@@ -367,6 +427,8 @@
     const improveAgainBtn = document.getElementById('improveAgainBtn');
     const historySection = document.getElementById('historySection');
     const historyList = document.getElementById('historyList');
+    const newPresentationBar = document.getElementById('newPresentationBar');
+    const newPresentationBtn = document.getElementById('newPresentationBtn');
 
     let selectedFile = null;
     let lastAnalysisResult = null;
@@ -376,6 +438,120 @@
     let currentInstructions = null;
     let currentAspect = null;
     let improvedPresentationFile = null;
+
+    // Reset all state for new presentation
+    function resetForNewPresentation() {
+        // Clear state variables
+        selectedFile = null;
+        lastAnalysisResult = null;
+        lastImprovedResult = null;
+        currentPriority = null;
+        currentAnalysisId = null;
+        currentInstructions = null;
+        currentAspect = null;
+        improvedPresentationFile = null;
+
+        // Clear file input
+        fileInput.value = '';
+        fileHint.textContent = 'PDF presentation (up to 20 MB)';
+        analyzeBtn.disabled = true;
+
+        // Hide all panels
+        hideError();
+        hideSpinner();
+        hideProgress();
+        results.style.display = 'none';
+        improvePanel.style.display = 'none';
+        improveOptions.style.display = 'none';
+        instructionsPanel.style.display = 'none';
+        evaluationPanel.style.display = 'none';
+        improvedResult.style.display = 'none';
+        newPresentationBar.classList.remove('visible');
+
+        // Clear file hint
+        improvedFileInput.value = '';
+
+        // Clear persisted state
+        clearState();
+    }
+
+    // --- localStorage state persistence ---
+    const STATE_KEY = 'slidewise_state';
+
+    function saveState() {
+        try {
+            const state = {
+                lastAnalysisResult,
+                currentAnalysisId,
+                currentAspect,
+                currentInstructions,
+                currentPriority,
+                savedAt: Date.now(),
+            };
+            localStorage.setItem(STATE_KEY, JSON.stringify(state));
+        } catch (e) {
+            console.warn('Failed to save state:', e);
+        }
+    }
+
+    function loadState() {
+        try {
+            const raw = localStorage.getItem(STATE_KEY);
+            if (!raw) return null;
+            const state = JSON.parse(raw);
+            // Expire after 24 hours
+            if (Date.now() - state.savedAt > 24 * 60 * 60 * 1000) {
+                clearState();
+                return null;
+            }
+            return state;
+        } catch (e) {
+            console.warn('Failed to load state:', e);
+            return null;
+        }
+    }
+
+    function clearState() {
+        try {
+            localStorage.removeItem(STATE_KEY);
+        } catch (e) {
+            console.warn('Failed to clear state:', e);
+        }
+    }
+
+    function restoreState() {
+        const state = loadState();
+        if (!state || !state.lastAnalysisResult) return false;
+
+        lastAnalysisResult = state.lastAnalysisResult;
+        currentAnalysisId = state.currentAnalysisId;
+        currentAspect = state.currentAspect;
+        currentInstructions = state.currentInstructions;
+        currentPriority = state.currentPriority;
+
+        // Restore UI
+        displayResults(lastAnalysisResult);
+        results.style.display = 'block';
+        newPresentationBar.classList.add('visible');
+
+        if (currentInstructions) {
+            // Was in improvement cycle
+            displayInstructions(currentInstructions, lastAnalysisResult.slide_by_slide?.length || 0);
+            instructionsPanel.style.display = 'block';
+        } else {
+            improvePanel.style.display = 'block';
+            improveOptions.style.display = 'none';
+        }
+
+        return true;
+    }
+
+    // New Presentation button handler
+    newPresentationBtn.addEventListener('click', () => {
+        resetForNewPresentation();
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
 
     // Upload area
     uploadArea.addEventListener('click', () => fileInput.click());
@@ -409,7 +585,17 @@
         progressTitle.textContent = title;
         progressBarFill.style.width = '0%';
         progressStatus.textContent = 'Starting...';
-        
+        progressTime.style.display = 'none';
+        progressEta.textContent = '⏱️ Estimating...';
+        progressElapsed.textContent = 'Elapsed: 0s';
+
+        // Reset timing tracking
+        progressTotalSlides = totalSlides;
+        progressStartTime = Date.now();
+
+        // Clear existing interval
+        if (progressEtaInterval) clearInterval(progressEtaInterval);
+
         // Create slide dots
         progressSlides.innerHTML = '';
         for (let i = 0; i < totalSlides; i++) {
@@ -420,13 +606,52 @@
         }
     }
     
+    function formatTime(seconds) {
+        if (seconds < 60) return `${Math.ceil(seconds)}s`;
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.ceil(seconds % 60);
+        return `${mins}m ${secs}s`;
+    }
+
     function updateProgress(current, total, message) {
-        const percent = total > 0 ? Math.round((current / total) * 100) : 0;
+        // Update total slides if not set initially
+        if (progressTotalSlides === 0 && total > 0) {
+            progressTotalSlides = total;
+            progressStartTime = Date.now();
+
+            // Show time tracking bar
+            progressTime.style.display = 'flex';
+            const estimatedTotal = total * SECONDS_PER_SLIDE;
+            progressEta.textContent = `⏱️ ~${formatTime(estimatedTotal)} estimated`;
+
+            // Create slide dots if not already created
+            if (progressSlides.innerHTML === '') {
+                progressSlides.innerHTML = '';
+                for (let i = 0; i < total; i++) {
+                    const dot = document.createElement('div');
+                    dot.className = 'progress-slide-dot';
+                    dot.id = `slide-dot-${i + 1}`;
+                    progressSlides.appendChild(dot);
+                }
+            }
+        }
+
+        const percent = progressTotalSlides > 0 ? Math.round((current / progressTotalSlides) * 100) : 0;
         progressBarFill.style.width = `${percent}%`;
         progressStatus.textContent = message;
-        
+
+        // Update ETA based on progress
+        if (progressStartTime && progressTotalSlides > 0 && current > 0) {
+            const elapsed = (Date.now() - progressStartTime) / 1000;
+            const timePerSlide = elapsed / current;
+            const remaining = (progressTotalSlides - current) * timePerSlide;
+
+            progressEta.textContent = `⏱️ ~${formatTime(remaining)} remaining`;
+            progressElapsed.textContent = `Elapsed: ${formatTime(elapsed)}`;
+        }
+
         // Update slide dots
-        for (let i = 1; i <= total; i++) {
+        for (let i = 1; i <= progressTotalSlides; i++) {
             const dot = document.getElementById(`slide-dot-${i}`);
             if (dot) {
                 dot.className = 'progress-slide-dot';
@@ -438,14 +663,18 @@
     
     function hideProgress() {
         progressContainer.style.display = 'none';
+        if (progressEtaInterval) clearInterval(progressEtaInterval);
+        progressEtaInterval = null;
+        progressTotalSlides = 0;
+        progressStartTime = null;
     }
     
     function subscribeToProgress(taskId, onProgress, onComplete, onError) {
         const eventSource = new EventSource(`/progress/${taskId}`);
-        
+
         eventSource.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            
+
             if (data.status === 'processing' && onProgress) {
                 onProgress(data.current_slide, data.total_slides, data.message);
             } else if (data.status === 'complete') {
@@ -475,45 +704,52 @@
         results.style.display = 'none';
         improvePanel.style.display = 'none';
         improvedResult.style.display = 'none';
-        
+
+        // Generate task_id client-side so we can subscribe to SSE before the request completes
+        const taskId = crypto.randomUUID();
         showProgress('🔍 Analyzing Presentation', 0);
+
+        // Subscribe to SSE immediately — backend will update progress_store as it works
+        const progressPromise = new Promise((resolve, reject) => {
+            subscribeToProgress(
+                taskId,
+                (current, total, message) => updateProgress(current, total, message),
+                () => resolve(),
+                (error) => reject(new Error(error))
+            );
+        });
 
         const formData = new FormData();
         formData.append('file', selectedFile);
-
-        let eventSource = null;
+        formData.append('task_id', taskId);
 
         try {
             const response = await fetch('/analyze', { method: 'POST', body: formData });
             const data = await response.json();
-            
+
             if (!response.ok) {
                 throw new Error(data.error || 'Analysis failed');
             }
-            
-            // Subscribe to progress updates
-            const taskId = data.task_id;
-            const result = await new Promise((resolve, reject) => {
-                eventSource = subscribeToProgress(
-                    taskId,
-                    (current, total, message) => updateProgress(current, total, message),
-                    () => resolve(data.result),
-                    (error) => reject(new Error(error))
-                );
-            });
-            
+
+            // Wait for SSE to signal completion
+            await progressPromise;
+
+            const result = data.result;
+            console.log('[analyze] response:', JSON.stringify(data, null, 2).substring(0, 500));
             lastAnalysisResult = result;
             currentAnalysisId = data.analysis_id || null;
+            console.log('[analyze] currentAnalysisId =', currentAnalysisId);
             displayResults(result);
             improvePanel.style.display = 'block';
             improveOptions.style.display = 'none';
+            newPresentationBar.classList.add('visible');
             hideProgress();
+            saveState();
         } catch (err) {
             showError(err.message);
             hideProgress();
         }
         finally {
-            if (eventSource) eventSource.close();
             analyzeBtn.disabled = false;
         }
     });
@@ -579,20 +815,39 @@
     }
 
     // Improve panel
-    improveYesBtn.addEventListener('click', () => { improveOptions.style.display = 'block'; });
+    improveYesBtn.addEventListener('click', () => {
+        console.log('[improveYesBtn] Showing improve options');
+        improveOptions.style.display = 'block';
+    });
     improveNoBtn.addEventListener('click', () => { improvePanel.style.display = 'none'; });
 
     // Aspect buttons - start iterative improvement
-    document.querySelectorAll('.aspect-buttons .btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
+    const aspectBtns = document.querySelectorAll('.aspect-buttons .btn');
+    console.log(`Found ${aspectBtns.length} aspect buttons`);
+    aspectBtns.forEach((btn, i) => {
+        console.log(`Button ${i}: "${btn.textContent.trim()}" priority="${btn.dataset.priority}"`);
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
             const aspect = btn.dataset.priority;
+            console.log('[aspect click]', aspect);
             await startIterativeImprovement(aspect);
         });
     });
 
     async function startIterativeImprovement(aspect) {
-        if (!lastAnalysisResult || !currentAnalysisId) {
+        console.log('[startIterativeImprovement]', {
+            hasLastAnalysisResult: !!lastAnalysisResult,
+            currentAnalysisId,
+            aspect
+        });
+
+        if (!lastAnalysisResult) {
             showError('No analysis data available. Please analyze a presentation first.');
+            return;
+        }
+
+        if (!currentAnalysisId) {
+            showError('No analysis ID available. Database may not be configured.');
             return;
         }
 
@@ -602,9 +857,22 @@
         evaluationPanel.style.display = 'none';
         showProgress(`Generating instructions for ${aspect}...`, 0);
 
+        const taskId = crypto.randomUUID();
+
+        // Subscribe to SSE immediately
+        const progressPromise = new Promise((resolve, reject) => {
+            subscribeToProgress(
+                taskId,
+                (current, total, message) => updateProgress(current, total, message),
+                () => resolve(),
+                (error) => reject(new Error(error))
+            );
+        });
+
         const formData = new FormData();
         formData.append('analysis_id', currentAnalysisId);
         formData.append('aspect', aspect);
+        formData.append('task_id', taskId);
 
         try {
             const response = await fetch('/start-improvement', { method: 'POST', body: formData });
@@ -612,22 +880,15 @@
 
             if (!response.ok) throw new Error(data.error || 'Failed to start improvement');
 
-            // Subscribe to progress
-            const taskId = data.task_id;
-            await new Promise((resolve, reject) => {
-                subscribeToProgress(
-                    taskId,
-                    (current, total, message) => updateProgress(current, total, message),
-                    () => resolve(),
-                    (error) => reject(new Error(error))
-                );
-            });
+            // Wait for SSE to signal completion
+            await progressPromise;
 
             // Show instructions
             currentInstructions = data.instructions;
             currentAspect = aspect;
             displayInstructions(data.instructions, data.slide_count);
             hideProgress();
+            saveState();
         } catch (err) {
             showError(err.message);
             hideProgress();
@@ -670,6 +931,7 @@
 
         instructionsList.innerHTML = html;
         instructionsPanel.style.display = 'block';
+        saveState();
     }
 
     // Upload improved file
@@ -686,6 +948,7 @@
         improvePanel.style.display = 'block';
         currentInstructions = null;
         currentAspect = null;
+        saveState();
     });
 
     async function uploadImprovedPresentation() {
@@ -694,9 +957,22 @@
         hideError(); hideProgress();
         showProgress('Evaluating improved presentation', 0);
 
+        const taskId = crypto.randomUUID();
+
+        // Subscribe to SSE immediately
+        const progressPromise = new Promise((resolve, reject) => {
+            subscribeToProgress(
+                taskId,
+                (current, total, message) => updateProgress(current, total, message),
+                () => resolve(),
+                (error) => reject(new Error(error))
+            );
+        });
+
         const formData = new FormData();
         formData.append('analysis_id', currentAnalysisId);
         formData.append('file', improvedPresentationFile);
+        formData.append('task_id', taskId);
 
         try {
             const response = await fetch('/check-improvement', { method: 'POST', body: formData });
@@ -710,16 +986,8 @@
                 throw new Error(data.error || 'Evaluation failed');
             }
 
-            // Subscribe to progress
-            const taskId = data.task_id;
-            await new Promise((resolve, reject) => {
-                subscribeToProgress(
-                    taskId,
-                    (current, total, message) => updateProgress(current, total, message),
-                    () => resolve(),
-                    (error) => reject(new Error(error))
-                );
-            });
+            // Wait for SSE to signal completion
+            await progressPromise;
 
             // Show evaluation result
             displayEvaluationResult(data, improvedPresentationFile.name);
@@ -785,8 +1053,10 @@
             chooseNewAspectBtn.style.display = 'none';
         }
 
+        newPresentationBar.classList.add('visible');
         instructionsPanel.style.display = 'none';
         evaluationPanel.style.display = 'block';
+        saveState();
     }
 
     // Upload again or choose new aspect
@@ -807,6 +1077,7 @@
 
     closeEvaluationBtn.addEventListener('click', () => {
         evaluationPanel.style.display = 'none';
+        newPresentationBar.classList.add('visible');
     });
 
     // Save
@@ -862,7 +1133,16 @@
             historySection.style.display = 'block';
         } catch (err) { /* silently fail */ }
     }
-    loadHistory();
+
+    // --- App initialization ---
+    function initApp() {
+        // Try to restore previous session state
+        if (!restoreState()) {
+            // No state to restore, load history as before
+            loadHistory();
+        }
+    }
+    initApp();
 </script>
 </body>
 </html>

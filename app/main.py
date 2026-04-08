@@ -64,19 +64,28 @@ async def log_requests(request: Request, call_next):
 @app.get("/progress/{task_id}")
 async def progress_stream(task_id: str):
     """Server-Sent Events endpoint for real-time progress."""
+    logger.info(f"SSE connection opened for task {task_id}")
+
     async def event_stream() -> AsyncGenerator[str, None]:
         import asyncio
+        iterations = 0
         while True:
+            iterations += 1
             if task_id in progress_store:
                 progress = progress_store[task_id]
-                yield f"data: {json.dumps(progress)}\n\n"
-                
+                data_str = json.dumps(progress)
+                logger.info(f"SSE yield [{progress.get('status')}] slide {progress.get('current_slide', 0)}/{progress.get('total_slides', 0)}: {progress.get('message', '')}")
+                yield f"data: {data_str}\n\n"
+
                 # Stop streaming when complete
                 if progress.get("status") == "complete" or progress.get("status") == "error":
+                    logger.info(f"SSE connection closed for task {task_id} after {iterations} iterations")
                     break
             else:
+                if iterations <= 3:
+                    logger.info(f"SSE waiting for task {task_id} (iteration {iterations})")
                 yield f"data: {json.dumps({'status': 'waiting'})}\n\n"
-            
+
             await asyncio.sleep(0.3)
     
     return StreamingResponse(
@@ -111,7 +120,7 @@ async def index(request: Request):
 
 
 @app.post("/analyze")
-async def analyze(request: Request, file: UploadFile = File(...)):
+async def analyze(request: Request, file: UploadFile = File(...), task_id: str = Form(None)):
     """Primary analysis: upload PDF, get full presentation feedback."""
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
@@ -122,7 +131,9 @@ async def analyze(request: Request, file: UploadFile = File(...)):
     if len(file_bytes) == 0:
         raise HTTPException(status_code=400, detail="Empty file")
 
-    task_id = str(uuid.uuid4())
+    # Use client-provided task_id or generate one
+    if not task_id:
+        task_id = str(uuid.uuid4())
     
     # Initialize progress
     progress_store[task_id] = {
@@ -133,6 +144,7 @@ async def analyze(request: Request, file: UploadFile = File(...)):
     }
 
     def update_progress(current: int, total: int, message: str):
+        logger.info(f"Progress callback: slide {current}/{total} - {message}")
         progress_store[task_id] = {
             "status": "processing",
             "current_slide": current,
@@ -195,6 +207,7 @@ async def improve(
     file: UploadFile = File(...),
     priority: str = Form(None),
     reference_file: UploadFile = File(None),
+    task_id: str = Form(None),
 ):
     """Improve presentation: by aspect or by reference."""
     if file.content_type not in ALLOWED_CONTENT_TYPES:
@@ -204,7 +217,8 @@ async def improve(
     if len(file_bytes) > MAX_FILE_SIZE:
         raise HTTPException(status_code=413, detail="File too large (max 20MB)")
 
-    task_id = str(uuid.uuid4())
+    if not task_id:
+        task_id = str(uuid.uuid4())
     
     # Initialize progress
     progress_store[task_id] = {
@@ -322,6 +336,7 @@ async def start_improvement(
     request: Request,
     analysis_id: int = Form(...),
     aspect: str = Form(...),
+    task_id: str = Form(None),
 ):
     """Start iterative improvement cycle: generate instructions for chosen aspect."""
     if not DATABASE_URL:
@@ -349,8 +364,9 @@ async def start_improvement(
             original_data = json.loads(record.original_feedback)
             slide_count = len(original_data.get("slide_by_slide", []))
 
-            # Generate instructions
-            task_id = str(uuid.uuid4())
+            # Use client-provided task_id or generate one
+            if not task_id:
+                task_id = str(uuid.uuid4())
             progress_store[task_id] = {
                 "status": "starting",
                 "current_slide": 0,
@@ -415,6 +431,7 @@ async def check_improvement(
     request: Request,
     analysis_id: int = Form(...),
     file: UploadFile = File(...),
+    task_id: str = Form(None),
 ):
     """Upload modified presentation and check against stored instructions."""
     if not DATABASE_URL:
@@ -426,6 +443,9 @@ async def check_improvement(
     file_bytes = await file.read()
     if len(file_bytes) > MAX_FILE_SIZE:
         raise HTTPException(status_code=413, detail="File too large (max 20MB)")
+
+    if not task_id:
+        task_id = str(uuid.uuid4())
 
     session_id = get_session_id(request)
 

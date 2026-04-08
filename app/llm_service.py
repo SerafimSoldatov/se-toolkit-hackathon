@@ -204,24 +204,27 @@ async def _process_slide_two_images_async(
     total_slides: int = 0
 ) -> dict:
     """Process a single slide with two images (current + reference) sequentially."""
+    correct_slide_number = slide_idx + 1
     current_b64 = image_to_base64(current_img)
     reference_b64 = image_to_base64(reference_img)
-    
+
     if progress_callback:
-        progress_callback(slide_idx + 1, total_slides, f"Comparing slide {slide_idx + 1}...")
-    
+        progress_callback(correct_slide_number, total_slides, f"Comparing slide {correct_slide_number}...")
+
     try:
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
             None,
-            lambda: _call_gigachat_two_images(system_prompt, user_prompt.format(idx=slide_idx + 1), current_b64, reference_b64)
+            lambda: _call_gigachat_two_images(system_prompt, user_prompt.format(idx=correct_slide_number), current_b64, reference_b64)
         )
+        # Enforce correct slide number regardless of what LLM returns
+        result["slide_number"] = correct_slide_number
         return result
     except Exception as e:
-        logger.error(f"Failed to compare slide {slide_idx + 1}: {e}")
+        logger.error(f"Failed to compare slide {correct_slide_number}: {e}")
         return {
-            "slide_number": slide_idx + 1,
-            "feedback": f"Failed to compare slide {slide_idx + 1}: {str(e)}",
+            "slide_number": correct_slide_number,
+            "feedback": f"Failed to compare slide {correct_slide_number}: {str(e)}",
             "suggestions": []
         }
 
@@ -237,28 +240,31 @@ async def _process_slide_async(
 ) -> dict:
     """Process a single slide sequentially."""
     slide_b64 = image_to_base64(slide_img)
-    
+    correct_slide_number = slide_idx + 1
+
     if progress_callback:
-        progress_callback(slide_idx + 1, total_slides, f"Analyzing slide {slide_idx + 1}...")
-    
+        progress_callback(correct_slide_number, total_slides, f"Analyzing slide {correct_slide_number}...")
+
     try:
         # Build context from previous slides to avoid repetition
         full_prompt = system_prompt
         if context_text:
             full_prompt += context_text
-        
+
         # Run blocking GigaChat call in thread pool
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
             None,
-            lambda: _call_gigachat(full_prompt, user_prompt.format(idx=slide_idx + 1), slide_b64)
+            lambda: _call_gigachat(full_prompt, user_prompt.format(idx=correct_slide_number), slide_b64)
         )
+        # Enforce correct slide number regardless of what LLM returns
+        result["slide_number"] = correct_slide_number
         return result
     except Exception as e:
-        logger.error(f"Failed to analyze slide {slide_idx + 1}: {e}")
+        logger.error(f"Failed to analyze slide {correct_slide_number}: {e}")
         return {
-            "slide_number": slide_idx + 1,
-            "feedback": f"Failed to analyze slide {slide_idx + 1}: {str(e)}",
+            "slide_number": correct_slide_number,
+            "feedback": f"Failed to analyze slide {correct_slide_number}: {str(e)}",
             "strengths": [],
             "weaknesses": [],
             "suggestions": []
@@ -556,33 +562,36 @@ async def generate_instructions(pdf_bytes: bytes, aspect: str, progress_callback
     instructions = []
     for idx, slide_img in enumerate(slide_images):
         slide_b64 = image_to_base64(slide_img)
-        
+        correct_slide_number = idx + 1
+
         if progress_callback:
-            progress_callback(idx + 1, total_slides, f"Generating instructions for slide {idx + 1}...")
-        
+            progress_callback(correct_slide_number, total_slides, f"Generating instructions for slide {correct_slide_number}...")
+
         try:
             result = _call_gigachat(
                 INSTRUCTION_PROMPTS[aspect],
-                f"Create instructions to improve slide {idx + 1} for aspect: {aspect}.",
+                f"Create instructions to improve slide {correct_slide_number} for aspect: {aspect}.",
                 slide_b64
             )
-            
-            # Extract instruction for this slide
+
+            # Extract instruction for this slide — enforce correct slide number
             if "instructions" in result:
-                instructions.extend(result["instructions"])
+                for inst in result["instructions"]:
+                    inst["slide_number"] = correct_slide_number
+                    instructions.append(inst)
             else:
                 # Fallback: treat entire response as instruction for this slide
                 instructions.append({
-                    "slide_number": idx + 1,
+                    "slide_number": correct_slide_number,
                     "instruction": result.get("feedback", result.get("instruction", "No specific instruction generated")),
                     "priority": result.get("priority", "medium")
                 })
-            
-            logger.info(f"Generated instructions for slide {idx + 1}")
+
+            logger.info(f"Generated instructions for slide {correct_slide_number}")
         except Exception as e:
-            logger.error(f"Failed to generate instructions for slide {idx + 1}: {e}")
+            logger.error(f"Failed to generate instructions for slide {correct_slide_number}: {e}")
             instructions.append({
-                "slide_number": idx + 1,
+                "slide_number": correct_slide_number,
                 "instruction": f"Failed to generate instruction: {str(e)}",
                 "priority": "high"
             })
@@ -612,77 +621,79 @@ async def evaluate_against_instructions(
     
     for idx, slide_img in enumerate(slide_images):
         slide_b64 = image_to_base64(slide_img)
-        
+        correct_slide_number = idx + 1
+
         if progress_callback:
-            progress_callback(idx + 1, total_slides, f"Evaluating slide {idx + 1}...")
-        
+            progress_callback(correct_slide_number, total_slides, f"Evaluating slide {correct_slide_number}...")
+
         # Find instructions for this slide
         slide_instructions = [
             inst for inst in stored_instructions.get("instructions", [])
-            if inst.get("slide_number") == idx + 1
+            if inst.get("slide_number") == correct_slide_number
         ]
-        
+
         if not slide_instructions:
             # No instruction for this slide, skip evaluation
             evaluations.append({
-                "slide_number": idx + 1,
+                "slide_number": correct_slide_number,
                 "instruction": "No instruction provided",
                 "status": "resolved",
                 "comment": "No specific instruction was given for this slide"
             })
             continue
-        
+
         try:
             # Build evaluation prompt with original instruction
             instruction_text = "; ".join([inst.get("instruction", "") for inst in slide_instructions])
-            
+
             eval_prompt = (
-                f"Evaluate whether slide {idx + 1} has followed this instruction: {instruction_text}\n"
+                f"Evaluate whether slide {correct_slide_number} has followed this instruction: {instruction_text}\n"
                 f"Return JSON with status (resolved/partial/unresolved) and comment explaining why."
             )
-            
+
             result = _call_gigachat(
                 SYSTEM_PROMPT_EVALUATE_INSTRUCTIONS,
                 eval_prompt,
                 slide_b64
             )
-            
-            # Extract evaluation for this slide
+
+            # Extract evaluation for this slide — enforce correct slide number
             if "evaluation" in result and len(result["evaluation"]) > 0:
                 eval_item = result["evaluation"][0]
-                # Ensure slide_number is set
-                eval_item["slide_number"] = eval_item.get("slide_number", idx + 1)
+                eval_item["slide_number"] = correct_slide_number
                 evaluations.append(eval_item)
-                
+
                 # Check if resolved
                 if eval_item.get("status") in ["partial", "unresolved"]:
                     if "new_instructions" in result:
-                        unresolved_instructions.extend(result["new_instructions"])
+                        for new_inst in result["new_instructions"]:
+                            new_inst["slide_number"] = correct_slide_number
+                            unresolved_instructions.append(new_inst)
             else:
                 # Fallback
                 evaluations.append({
-                    "slide_number": idx + 1,
+                    "slide_number": correct_slide_number,
                     "instruction": instruction_text,
                     "status": "unresolved",
                     "comment": "Could not evaluate instruction"
                 })
                 unresolved_instructions.append({
-                    "slide_number": idx + 1,
+                    "slide_number": correct_slide_number,
                     "instruction": instruction_text,
                     "priority": "high"
                 })
-            
-            logger.info(f"Evaluated slide {idx + 1}")
+
+            logger.info(f"Evaluated slide {correct_slide_number}")
         except Exception as e:
-            logger.error(f"Failed to evaluate slide {idx + 1}: {e}")
+            logger.error(f"Failed to evaluate slide {correct_slide_number}: {e}")
             evaluations.append({
-                "slide_number": idx + 1,
+                "slide_number": correct_slide_number,
                 "instruction": "Evaluation failed",
                 "status": "unresolved",
                 "comment": str(e)
             })
             unresolved_instructions.append({
-                "slide_number": idx + 1,
+                "slide_number": correct_slide_number,
                 "instruction": "Re-evaluate this slide",
                 "priority": "high"
             })
