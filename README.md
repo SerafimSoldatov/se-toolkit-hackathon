@@ -1,4 +1,4 @@
-# SlideWise (Slide-by-Slide Iteration) — AI-анализ и улучшение презентаций
+# SlideWise (Slide-by-Slide Iteration) — AI Presentation Analysis and Improvement
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green.svg)
@@ -24,7 +24,7 @@
 - **PostgreSQL Database:** Persistent storage for analysis history
 - **Session-Based History:** Tracks past analyses per user via cookie-based sessions
 - **Drag & Drop Upload:** Intuitive PDF file upload
-- **Responsive UI:** Clean, modern single-page interface in Russian
+- **Responsive UI:** Clean, modern single-page interface
 
 ## Quick Start
 
